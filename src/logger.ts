@@ -57,11 +57,6 @@ export class Logger {
   private readonly context: Record<string, unknown>;
   private root: Logger;
 
-  // Extreme mode: batch writes per event-loop tick via setImmediate
-  private extremeMode = false;
-  private extremeQueue: string[] = [];
-  private extremeFlushScheduled = false;
-
   public constructor(
     options: LoggerOptions,
     context: Record<string, unknown> = {}
@@ -104,19 +99,6 @@ export class Logger {
     }
   }
 
-  private writeEntryBuffered(line: string): void {
-    this.extremeQueue.push(line);
-    if (!this.extremeFlushScheduled) {
-      this.extremeFlushScheduled = true;
-      setImmediate(() => {
-        const batch = this.extremeQueue.join('');
-        this.extremeQueue = [];
-        this.extremeFlushScheduled = false;
-        this.writeEntry(batch);
-      });
-    }
-  }
-
   public log(level: LogLevel, message: string, data?: unknown): void {
     const entry: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
@@ -128,13 +110,7 @@ export class Logger {
       entry['data'] = data;
     }
     const line = JSON.stringify(entry) + '\n';
-
-    const root = this.root;
-    if (root.extremeMode) {
-      root.writeEntryBuffered(line);
-    } else {
-      root.writeEntry(line);
-    }
+    this.root.writeEntry(line);
   }
 
   private rotate(): void {
@@ -174,14 +150,6 @@ export class Logger {
     );
     child.root = this.root;
     return child;
-  }
-
-  /**
-   * Enable extreme mode: writes are batched per event-loop tick via
-   * setImmediate, reducing the number of stream.write() syscalls.
-   */
-  public enableExtremeMode(): void {
-    this.root.extremeMode = true;
   }
 
   /**

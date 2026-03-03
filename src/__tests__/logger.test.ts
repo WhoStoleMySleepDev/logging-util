@@ -270,56 +270,6 @@ describe('Logger', () => {
     });
   });
 
-  describe('extreme mode', () => {
-    let logger: Logger;
-
-    beforeEach(() => {
-      jest.useFakeTimers();
-      logger = new Logger({ logFilePath: mockLogFilePath });
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
-    it('should not write immediately in extreme mode', () => {
-      logger.enableExtremeMode();
-      logger.info('buffered message');
-
-      expect(mockStream.write).not.toHaveBeenCalled();
-    });
-
-    it('should flush all buffered writes as a single call on setImmediate', () => {
-      logger.enableExtremeMode();
-      logger.info('msg1');
-      logger.info('msg2');
-      logger.info('msg3');
-
-      expect(mockStream.write).not.toHaveBeenCalled();
-
-      jest.runAllTimers();
-
-      expect(mockStream.write).toHaveBeenCalledTimes(1);
-      const [batch] = (mockStream.write as jest.Mock).mock.calls[0];
-      expect(batch).toContain('msg1');
-      expect(batch).toContain('msg2');
-      expect(batch).toContain('msg3');
-    });
-
-    it('child in extreme mode should also be batched', () => {
-      logger.enableExtremeMode();
-      const child = logger.child({ component: 'db' });
-
-      child.info('child msg');
-
-      jest.runAllTimers();
-
-      expect(mockStream.write).toHaveBeenCalledTimes(1);
-      const [batch] = (mockStream.write as jest.Mock).mock.calls[0];
-      expect(batch).toContain('"component":"db"');
-    });
-  });
-
   describe('flush and close', () => {
     let logger: Logger;
 
